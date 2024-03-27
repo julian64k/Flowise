@@ -3,6 +3,7 @@ import multer from 'multer'
 import path from 'path'
 import cors from 'cors'
 import http from 'http'
+import https from 'https'
 import * as fs from 'fs'
 import basicAuth from 'express-basic-auth'
 import contentDisposition from 'content-disposition'
@@ -2407,6 +2408,39 @@ export async function start(): Promise<void> {
 
     const io = new Server(server, {
         cors: getCorsOptions()
+    })
+
+    // Middleware para intentar obtener un JWT a partir de las cookies presentes en las cabeceras del handshake
+    io.use(async (socket, next) => {
+        const cookies = socket.handshake.headers.cookie
+
+        if (cookies) {
+            try {
+                const baseUrl = process.env.CORS_ORIGINS as string
+
+                const isLocalhost = baseUrl.includes('localhost')
+
+                const httpsAgent = new https.Agent({
+                    rejectUnauthorized: !isLocalhost // Omitir la validación de certificados SSL
+                })
+
+                const response = await axios.get(`${baseUrl}/api/Authentication/AuthenticateByCookie`, {
+                    httpsAgent,
+                    headers: {
+                        Cookie: cookies
+                    }
+                })
+
+                socket.jwtToken = response.data
+            } catch (error) {
+                console.error('Error obtaining JWT:', error)
+            }
+        } else {
+            console.log('Continuing without cookies...')
+        }
+
+        // Continuar con el flujo de conexión
+        next()
     })
 
     await serverApp.initDatabase()
