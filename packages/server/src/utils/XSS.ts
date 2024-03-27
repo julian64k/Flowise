@@ -33,7 +33,8 @@ export function getCorsOptions(): any {
             } else {
                 callback(null, false)
             }
-        }
+        },
+        credentials: true // Permitir el envío de cookies / credenciales con solicitudes CORS
     }
     return corsOptions
 }
